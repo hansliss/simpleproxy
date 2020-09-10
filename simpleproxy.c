@@ -1410,9 +1410,9 @@ static void trace(int fd, char *buf, int siz)
     struct hostent *peer_host;
     ssize_t unused_bytes_written;
     char *tfName = malloc(strlen(Tracefile) + 10 + 2); // underscore + date + NUL
+    time_t now_t = time(NULL);
+    struct tm *now = localtime(&now_t);
     if (DailyTraceFile) {
-      time_t now_t = time(NULL);
-      struct tm *now = localtime(&now_t);
       sprintf(tfName, "%s_%04d-%02d-%02d", Tracefile, now->tm_year + 1900, now->tm_mon + 1, now->tm_mday);
     } else {
       strcpy(tfName, Tracefile);
@@ -1447,7 +1447,10 @@ static void trace(int fd, char *buf, int siz)
             strcpy(peer_name, "unknown source");
 
         trace_header_len = snprintf(trace_header, sizeof(trace_header) - 1,
-                                    "\n---------------- Read from: %s ---------------\n",
+                                    "\n---------------- %02d:%02d:%02d Read from: %s ---------------\n",
+				    now->tm_hour,
+				    now->tm_min,
+				    now->tm_sec,
                                     peer_name);
 
         /* TODO: check actual return value and log error if needed */
