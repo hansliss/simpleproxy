@@ -163,7 +163,7 @@ static int   HTTPSProxyPort     = -1;
 static char *HTTPSBasicAuthString = nil;
 static char *HTTPAuthHash = nil;
 static char *Tracefile          = nil;
-static int  DailyTraceFile = 0;
+static int  isDailyTraceFile = 0;
 
 static int  SockFD    = -1,
     SrcSockFD = -1,
@@ -235,6 +235,8 @@ int main(int ac, char **av)
                         isStripping = str2bool(cfgfind("Strip8bit", cfg, 0));
                     if (!isHtmlProbe)
                         isHtmlProbe = str2bool(cfgfind("HtmlProbe", cfg, 0));
+                    if (!isDailyTraceFile)
+                        isDailyTraceFile = str2bool(cfgfind("isDailyTraceFile", cfg, 0));
 
                     tmp = cfgfind("LocalPort", cfg, 0);
                     if (tmp && lportn == -1)
@@ -319,7 +321,7 @@ int main(int ac, char **av)
             replace_string(&Tracefile, optarg);
             break;
 	case 'T':
-	    DailyTraceFile = 1;
+	    isDailyTraceFile = 1;
 	    break;
         default:
             errflg++;
@@ -1412,7 +1414,7 @@ static void trace(int fd, char *buf, int siz)
     char *tfName = malloc(strlen(Tracefile) + 10 + 2); // underscore + date + NUL
     time_t now_t = time(NULL);
     struct tm *now = localtime(&now_t);
-    if (DailyTraceFile) {
+    if (isDailyTraceFile) {
       sprintf(tfName, "%s_%04d-%02d-%02d", Tracefile, now->tm_year + 1900, now->tm_mon + 1, now->tm_mday);
     } else {
       strcpy(tfName, Tracefile);
