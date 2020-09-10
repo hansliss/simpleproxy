@@ -81,6 +81,8 @@
 #include <sys/socket.h>
 #include <netdb.h>
 
+#include <time.h>
+
 #include "cfg.h"
 
 #ifndef nil
@@ -97,7 +99,7 @@
 #define SELECT_TIMOEOUT_MSEC 0
 
 static char *SIMPLEPROXY_VERSION = "simpleproxy v3.5 by lord@crocodile.org,vlad@noir.crocodile.org,verylong@noir.crocodile.org,renzo@cs.unibo.it";
-static char *SIMPLEPROXY_USAGE   = "simpleproxy -L <[host:]port> -R <host:port> [-d] [-v] [-V] [-7] [-i] [-u] [-p PID file] [-P <POP3 accounts list file>] [-f cfgfile] [-t tracefile] [-D delay in sec.] [-S <HTTPS proxy host:port> [-a <HTTPS Auth user>:<HTTPS Auth password>] ] [-A  <HTTP Auth user>:<HTTP Auth password>]";
+static char *SIMPLEPROXY_USAGE   = "simpleproxy -L <[host:]port> -R <host:port> [-d] [-v] [-V] [-7] [-i] [-u] [-p PID file] [-P <POP3 accounts list file>] [-f cfgfile] [-t tracefile] [-D delay in sec.] [-S <HTTPS proxy host:port> [-a <HTTPS Auth user>:<HTTPS Auth password>] ] [-A  <HTTP Auth user>:<HTTP Auth password>] [-T]";
 static char *PROXY_HEADER_FMT = "\r\nProxy-Authorization: Basic %s";
 static char *PROXY_HEADER = "\r\nProxy-Authorization: Basic ";
 static char AUTHMSG[]=
@@ -161,6 +163,7 @@ static int   HTTPSProxyPort     = -1;
 static char *HTTPSBasicAuthString = nil;
 static char *HTTPAuthHash = nil;
 static char *Tracefile          = nil;
+static int  DailyTraceFile = 0;
 
 static int  SockFD    = -1,
     SrcSockFD = -1,
@@ -191,7 +194,7 @@ int main(int ac, char **av)
     char   hbuf[NI_MAXHOST];
 
     /* Check for the arguments, and overwrite values from cfg file */
-    while((c = getopt(ac, av, "iVv7dhuL:R:H:f:p:P:D:S:s:a:A:t:")) != -1)
+    while((c = getopt(ac, av, "iVv7dhuL:R:H:f:p:P:D:S:s:a:A:t:T")) != -1)
         switch (c)
         {
         case 'v':
@@ -315,6 +318,9 @@ int main(int ac, char **av)
         case 't':
             replace_string(&Tracefile, optarg);
             break;
+	case 'T':
+	    DailyTraceFile = 1;
+	    break;
         default:
             errflg++;
         }
@@ -1403,7 +1409,17 @@ static void trace(int fd, char *buf, int siz)
     socklen_t peer_addr_len = sizeof(peer_addr);
     struct hostent *peer_host;
     ssize_t unused_bytes_written;
-    int tfd = open(Tracefile, O_CREAT | O_WRONLY| O_APPEND, S_IRUSR | S_IWUSR |  S_IRGRP | S_IWGRP | S_IROTH | S_IWOTH);
+    char *tfName = malloc(strlen(Tracefile) + 10 + 2); // underscore + date + NUL
+    if (DailyTraceFile) {
+      time_t now_t = time(NULL);
+      struct tm *now = localtime(&now_t);
+      sprintf(tfName, "%s_%04d-%02d-%02d", Tracefile, now->tm_year + 1900, now->tm_mon + 1, now->tm_mday);
+    } else {
+      strcpy(tfName, Tracefile);
+    }
+    int tfd = open(tfName, O_CREAT | O_WRONLY| O_APPEND, S_IRUSR | S_IWUSR |  S_IRGRP | S_IWGRP | S_IROTH | S_IWOTH);
+
+    free(tfName);
 
     if(tfd < 0)
     {
