@@ -100,6 +100,12 @@
 #define SELECT_TIMOEOUT_SEC  5
 #define SELECT_TIMOEOUT_MSEC 0
 
+typedef struct sessionInfo_s {
+  char client_name[256];
+  uint16_t client_port;
+  struct tm *startTime;
+} *sessionInfo;
+
 static char *SIMPLEPROXY_VERSION = "simpleproxy v3.5-HL by hans@liss.pp.se, forked from simpleproxy by lord@crocodile.org,vlad@noir.crocodile.org,verylong@noir.crocodile.org,renzo@cs.unibo.it";
 static char *SIMPLEPROXY_USAGE   = "simpleproxy [-V] [-v] [-d] [-h] -L <[host:]port> -R <host:port> [-p PID file] [-t tracefile] [-T] [-f cfgfile]";
 
@@ -110,13 +116,13 @@ struct lst_record {
 
 static void daemon_start(void);
 static int  writen(int fd, char *ptr, int nbytes);
-static void pass_all(int client, int server, const char *connDescr);
-static int  copy_data(int in, int out, int isClient, const char *connDescr);
+static void pass_all(int client, int server, sessionInfo si);
+static int  copy_data(int in, int out, int fromClient, sessionInfo si);
 static int  get_hostaddr(const char *name);
-static int  readln(int fd, char *buf, int siz, int isClient, const char *connDescr);
+static int  readln(int fd, char *buf, int siz, int fromClient, sessionInfo si);
 static void child_dead( int stat );
 static void write_pid( char* filename );
-static int  open_remote(const char *rhost, int rportn, const char *client_name);
+static int  open_remote(const char *rhost, int rportn);
 static void logopen(void);
 static void logclose(void);
 static void logmsg(int, char *format, ...);
@@ -125,7 +131,7 @@ static int  str2bool(char *s);
 static void parse_host_port(const char *src, char **h_ptr, int *p_ptr);
 static void replace_string(char **dst, const char*src);
 static void fatal();
-static void trace(int fd, char *buf, int siz, int isClient, const char *connDescr);
+static void trace(int fd, char *buf, int siz, int fromClient, sessionInfo si);
 
 static int   isVerbose          = 0;
 static int   isDaemon           = 0;
@@ -142,7 +148,7 @@ int main(int ac, char **av) {
   struct sockaddr_in cli_addr, serv_addr;
   int    lportn = -1, rportn = -1;
   char  *lhost = NULL, *rhost = NULL;
-  char   client_description[256];
+  struct sessionInfo_s si;
   extern char *optarg;
   int    c;
   int    errflg = 0;
@@ -316,7 +322,11 @@ int main(int ac, char **av) {
       break;
 	  
     case 0: /* Child */
-      snprintf(client_description, sizeof(client_description), "%s:%d", inet_ntoa(cli_addr.sin_addr), ntohs(cli_addr.sin_port));
+      strncpy(si.client_name, inet_ntoa(cli_addr.sin_addr), sizeof(si.client_name));
+      si.client_name[sizeof(si.client_name)-1] = '\0';
+      si.client_port = ntohs(cli_addr.sin_port);
+      time_t now_t = time(NULL);
+      si.startTime = localtime(&now_t);
 	  
       /*
        * I don't know is that a bug, but on Irix 6.2 parent
@@ -329,16 +339,16 @@ int main(int ac, char **av) {
 	  
       /* Process connection */
 	  
-      logmsg(LOG_NOTICE, "Connect from %s", client_description);
+      logmsg(LOG_NOTICE, "Connect from %s:%d", si.client_name, si.client_port);
 	  
-      DstSockFD = open_remote(rhost, rportn, client_description);
+      DstSockFD = open_remote(rhost, rportn);
 
       if (DstSockFD == -1)
         fatal();
 
-      pass_all(SrcSockFD, DstSockFD, client_description);
+      pass_all(SrcSockFD, DstSockFD, &si);
 
-      logmsg(LOG_NOTICE, "Connection from %s closed", client_description);
+      logmsg(LOG_NOTICE, "Connection from %s:%d closed", si.client_name, si.client_port);
 	  
 
       shutdown(DstSockFD, 2);
@@ -400,7 +410,7 @@ static void daemon_start(void) {
 }
 
 
-void pass_all(int client, int server, const char *connDescr) {
+void pass_all(int client, int server, sessionInfo si) {
   fd_set         in;
   struct timeval tv;
   int            nsock, retval;
@@ -427,9 +437,9 @@ void pass_all(int client, int server, const char *connDescr) {
       return;
     default:
       if(FD_ISSET(server, &in)) {
-	retval = copy_data(server, client, 0, connDescr);
+	retval = copy_data(server, client, 0, si);
       } else if(FD_ISSET(client, &in)) {
-	retval = copy_data(client, server, 1, connDescr);
+	retval = copy_data(client, server, 1, si);
       } else {
 	retval = -1;
       }
@@ -455,7 +465,7 @@ static int get_hostaddr(const char *name) {
   return res;
 }
 
-static int copy_data(int in, int out, int isClient, const char *connDescr) {
+static int copy_data(int in, int out, int fromClient, sessionInfo si) {
   int nread;
   static char *buff=NULL;
   static int size=0;
@@ -470,7 +480,7 @@ static int copy_data(int in, int out, int isClient, const char *connDescr) {
     }
   }
 
-  if ((nread = readln(in, buff+len, size-len, isClient, connDescr)) <= 0) {
+  if ((nread = readln(in, buff+len, size-len, fromClient, si)) <= 0) {
     return -1;
   } else {
     len += nread;
@@ -530,7 +540,7 @@ void write_pid( char* filename ) {
 
 
 
-static int readln(int fd, char *buf, int siz, int isClient, const char *connDescr) {
+static int readln(int fd, char *buf, int siz, int fromClient, sessionInfo si) {
   int  nread;
 
   nread = read(fd, buf, siz);
@@ -542,7 +552,7 @@ static int readln(int fd, char *buf, int siz, int isClient, const char *connDesc
   } else {
     if (Tracefile) {
       // do tracing;
-      trace(fd, buf, nread, isClient, connDescr);
+      trace(fd, buf, nread, fromClient, si);
     }
     return nread;
   }
@@ -550,7 +560,7 @@ static int readln(int fd, char *buf, int siz, int isClient, const char *connDesc
 
 
 
-int open_remote(const char *rhost, int rportn, const char *src_name) {
+int open_remote(const char *rhost, int rportn) {
   const char        *dest_host;
   int                dest_port;
   struct sockaddr_in remote_addr;
@@ -717,16 +727,27 @@ void fatal() {
 }
 
  
-void trace(int fd, char *buf, int siz, int isClient, const char *connDescr) {
+void trace(int fd, char *buf, int siz, int fromClient, sessionInfo si) {
   char trace_header[256];
   int trace_header_len;
-  char *tfName = malloc(strlen(Tracefile) + 10 + 2); // underscore + date + NUL
+  // underscore + date + underscore + time + underscore + ipaddr + underscore + port + NUL
+  int buflen = strlen(Tracefile) + 1 + 8 + 1 + 6 + 1 + 15 + 1 + 5 + 1;
+  char *tfName = malloc(buflen);
   time_t now_t = time(NULL);
   struct tm *now = localtime(&now_t);
   ssize_t bytes_written;
   
   if (isDailyTraceFile) {
-    sprintf(tfName, "%s_%04d-%02d-%02d", Tracefile, now->tm_year + 1900, now->tm_mon + 1, now->tm_mday);
+    snprintf(tfName, buflen, "%s_%04d%02d%02d_%02d%02d%02d_%s_%d",
+	     Tracefile,
+	     now->tm_year + 1900,
+	     now->tm_mon + 1,
+	     now->tm_mday,
+	     si->startTime->tm_hour,
+	     si->startTime->tm_min,
+	     si->startTime->tm_sec,
+	     si->client_name,
+	     si->client_port);
   } else {
     strcpy(tfName, Tracefile);
   }
@@ -740,12 +761,12 @@ void trace(int fd, char *buf, int siz, int isClient, const char *connDescr) {
     Tracefile = NULL;
   } else {
     trace_header_len = snprintf(trace_header, sizeof(trace_header) - 1,
-				"\n[### %02d:%02d:%02d %s: %s ###]\n",
+				"\n##### %c %02d:%02d:%02d %d #####\n",
+				fromClient?'>':'<',
 				now->tm_hour,
 				now->tm_min,
 				now->tm_sec,
-				isClient?"from":"to",
-				connDescr);
+				siz);
     
     /* TODO: check actual return value and log error if needed */
     ssize_t bytes_to_write = (trace_header_len <= sizeof(trace_header) - 1)? trace_header_len: (sizeof(trace_header) - 1);

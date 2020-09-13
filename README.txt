@@ -22,11 +22,10 @@ Description
 Simpleproxy is a simple TCP proxy. It accepts connections on a local
 TCP port and forward them to anoter port on a remote host via TCP.
 
-It could be used as standalone daemon, or run via `inetd`.
+It can be used as standalone foreground or background daemon.
 
-For various options such as POP3 user screening, logging, HTTP proxy
-support, see man page (man simpleproxy).
-        
+With the -T flag, simpleproxy will generate a new log file for each new
+{day,session,client(ip, port)}, using the given log file name as a prefix.
 
 Installation
 ------------
