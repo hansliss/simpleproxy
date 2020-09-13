@@ -1,21 +1,19 @@
-.TH SIMPLEPROXY 1 "Version 3.5"
+.TH SIMPLEPROXY 1 "Version 3.5-HL"
 .ds ]W November 2003
 .SH NAME
 simpleproxy \- Simple tcp socket proxy
 .SH SYNOPSIS
 .ta 6n
 \fBsimpleproxy\fP 
-[-7]
 [-v]
 [-V]
 [-d]
-[-i]
-[-u]
--P <\fIPOP3 users file\fP>
 -L [<\fIlocal host\fP>:]<\fIlocal port\fP>
 -R <\fIremote host\fP>:<\fIremote port\fP>
-[-S <\fIproxy host\fP>:<\fIproxy port\fP>]
- 
+[-p <\fIPID file\fP>
+[-t <\fItrace file\fP>
+[-T]
+[-f <\fIconfig file\fP>
 .br
 .SH DESCRIPTION
 The 
@@ -33,12 +31,6 @@ Version information.
 .B \-v
 Makes \fIsimpleproxy\fP to write activity information to \fIsyslog\fP or \fIstderr\fP.
 .TP 8
-.B \-7
-Makes \fIsimpleproxy\fP to strip 8th bit.
-.TP 8
-.B \-i
-Use this flag when starting \fIsimpleproxy\fP from INETD.
-.TP 8
 .B \-d
 By default \fIsimpleproxy\fP does not detach itself from control terminal and writes all
 messages to \fIstderr\fP. This option will detach it from terminal and make it write
@@ -50,35 +42,11 @@ Local host and port name or number to bind for listening. Host name is optional.
 .B \-R <\fIremote host\fP>:<\fIremote port\fP>
 Remote host and port name or number
 .TP 8
-.B \-P \fP<\fIPOP3 users list\fP>
-If specified, simpleproxy will load list of
-users from the <filename> (one per line). After this it will be
-forwarding POP3 sessions only if client trying to authenificate as
-this user.
-.TP 8
-.B \-S <\fIproxy host\fP>:<\fIproxy port\fP>
-HTTPS proxy server host and port name or number.
-.TP 8
-.B \-a <\fIHTTPS Auth User\fP>:<\fIHTTPS Auth Password\fP>
-Authenticate to the HTTPS proxy server with the given userid and password.
-This option performs BASIC HTTP authentication as specified in RFC 2617.
-Used only in conjunction with -S.
-.TP 8
-.B \-A <\fIHTTP Auth User\fP>:<\fIHTTP Auth Password\fP>
-Requires HTTP proxy authentication.
-Client browser must supply username and password to use this proxy.
-This option performs BASIC HTTP authentication as specified in RFC 2617.
-.TP 8
-.B \-u
-URLs of visited pages are emitted on stdout.
-It is used for logging or for remote lecturing, if the output is redirected
-to a remote command that change a dynamic web page, it is possible to 
-synchronize
-all the learner web browsers to the same page visited by the instructor.
-(see the "simple remote lecturing" project on sourceforge).
-.TP 8
 .B \-t <\fItrace file\fP>
 If specified, simpleproxy will dump all data that passes through connection to the specified file.
+.TP 8
+.B \-T
+Makes \fIsimpleproxy\fP write a new, date stamped trace file for each new day.
 
 .SH BUGS\ \ \ \        
 Only \fItcp\fP ports are supported.
@@ -87,10 +55,11 @@ Only \fItcp\fP ports are supported.
 .PP
 .SH SEE ALSO
 .PP
-inetd(1M), services(4), http://www.crocodile.org/software.html
+services(4), http://www.crocodile.org/software.html
 
 .SH AUTHOR
 .PP
+Hans Liss <Hans@Liss.pp.se>
 Vadim Zaliva <lord@crocodile.org>,
 Vladimir Karpinsky  <vlad@noir.crocodile.org>
 Vadim Tymchenko <verylong@noir.crocodile.org>

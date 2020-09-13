@@ -1,9 +1,5 @@
 $Id$
 
-. getclient for INETD.
-
-. not only PASS auth in POP3 supported. We need to support MD5 as well.
-
 . better command-line synax.
 
 . add distinctive application return codes and document them in man page.

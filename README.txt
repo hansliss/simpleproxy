@@ -1,6 +1,11 @@
 Simpleproxy
 ===========
 
+Simplified/modified version by Hans@Liss.pp.se
+ * No HTTP proxy support
+ * No POP3 support
+ * Better trace support
+
 Original authors:
 -----------------
   * Vadim Zaliva <lord@crocodile.org>
