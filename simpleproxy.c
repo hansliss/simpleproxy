@@ -731,21 +731,23 @@ void trace(int fd, char *buf, int siz, int fromClient, sessionInfo si) {
   char trace_header[256];
   int trace_header_len;
   // underscore + date + underscore + time + underscore + ipaddr + underscore + port + NUL
-  int buflen = strlen(Tracefile) + 1 + 8 + 1 + 6 + 1 + 15 + 1 + 5 + 1;
+  int buflen = strlen(Tracefile) + 1 + 8 /*+ 1 + 6 */+ 1 + 15 + 1 + 5 + 1;
   char *tfName = malloc(buflen);
   time_t now_t = time(NULL);
   struct tm *now = localtime(&now_t);
   ssize_t bytes_written;
   
   if (isDailyTraceFile) {
-    snprintf(tfName, buflen, "%s_%04d%02d%02d_%02d%02d%02d_%s_%d",
+    snprintf(tfName, buflen,
+	     //	     "%s_%04d%02d%02d_%02d%02d%02d_%s_%d",
+	     "%s_%04d%02d%02d_%s_%d",
 	     Tracefile,
 	     now->tm_year + 1900,
 	     now->tm_mon + 1,
 	     now->tm_mday,
-	     si->startTime->tm_hour,
-	     si->startTime->tm_min,
-	     si->startTime->tm_sec,
+	     //	     si->startTime->tm_hour,
+	     //	     si->startTime->tm_min,
+	     //	     si->startTime->tm_sec,
 	     si->client_name,
 	     si->client_port);
   } else {
