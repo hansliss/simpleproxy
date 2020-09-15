@@ -104,6 +104,7 @@ typedef struct sessionInfo_s {
   char client_name[256];
   uint16_t client_port;
   struct tm *startTime;
+  unsigned int startms;
 } *sessionInfo;
 
 static char *SIMPLEPROXY_VERSION = "simpleproxy v3.5-HL by hans@liss.pp.se, forked from simpleproxy by lord@crocodile.org,vlad@noir.crocodile.org,verylong@noir.crocodile.org,renzo@cs.unibo.it";
@@ -325,7 +326,10 @@ int main(int ac, char **av) {
       strncpy(si.client_name, inet_ntoa(cli_addr.sin_addr), sizeof(si.client_name));
       si.client_name[sizeof(si.client_name)-1] = '\0';
       si.client_port = ntohs(cli_addr.sin_port);
-      time_t now_t = time(NULL);
+      struct timespec spec;
+      clock_gettime(CLOCK_REALTIME, &spec);
+      time_t now_t = spec.tv_sec;
+      si.startms = spec.tv_nsec / 1.0e6;
       si.startTime = localtime(&now_t);
 	  
       /*
@@ -733,7 +737,10 @@ void trace(int fd, char *buf, int siz, int fromClient, sessionInfo si) {
   // underscore + date + underscore + time + underscore + ipaddr + underscore + port + NUL
   int buflen = strlen(Tracefile) + 1 + 8 /*+ 1 + 6 */+ 1 + 15 + 1 + 5 + 1;
   char *tfName = malloc(buflen);
-  time_t now_t = time(NULL);
+  struct timespec spec;
+  clock_gettime(CLOCK_REALTIME, &spec);
+  time_t now_t = spec.tv_sec;
+  unsigned int now_ms = spec.tv_nsec / 1.0e6;
   struct tm *now = localtime(&now_t);
   ssize_t bytes_written;
   
@@ -763,11 +770,12 @@ void trace(int fd, char *buf, int siz, int fromClient, sessionInfo si) {
     Tracefile = NULL;
   } else {
     trace_header_len = snprintf(trace_header, sizeof(trace_header) - 1,
-				"\n##### %c %02d:%02d:%02d %d #####\n",
+				"\n##### %c %02d:%02d:%02d.%03d %d #####\n",
 				fromClient?'>':'<',
 				now->tm_hour,
 				now->tm_min,
 				now->tm_sec,
+				now_ms,
 				siz);
     
     /* TODO: check actual return value and log error if needed */
