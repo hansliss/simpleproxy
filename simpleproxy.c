@@ -97,8 +97,8 @@
 
 #define MBUFSIZ 8192
 
-#define SELECT_TIMOEOUT_SEC  5
-#define SELECT_TIMOEOUT_MSEC 0
+#define SELECT_TIMEOUT_SEC  60
+#define SELECT_TIMEOUT_MSEC 0
 
 typedef struct sessionInfo_s {
   char client_name[256];
@@ -426,8 +426,8 @@ void pass_all(int client, int server, sessionInfo si) {
     FD_SET(server, &in);
     FD_SET(client, &in);
 	
-    tv.tv_sec  = SELECT_TIMOEOUT_SEC;
-    tv.tv_usec = SELECT_TIMOEOUT_MSEC;
+    tv.tv_sec  = SELECT_TIMEOUT_SEC;
+    tv.tv_usec = SELECT_TIMEOUT_MSEC;
 	
     retval = select(nsock, &in, NULL, NULL, &tv);
 	
